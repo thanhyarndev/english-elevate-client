@@ -12,6 +12,7 @@ const ListeningMode = () => {
   const [history, setHistory] = useState([]);
   const [mistakeCount, setMistakeCount] = useState(0);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [vietnameseHint, setVietnameseHint] = useState("");
   const inputRefs = useRef([]);
   const navigate = useNavigate();
 
@@ -42,6 +43,7 @@ const ListeningMode = () => {
     setInputValues(Array(word.length).fill(""));
     setMistakeCount(0);
     setShowExplanation(false);
+    setVietnameseHint("");
     setTimeout(() => inputRefs.current[0]?.focus(), 0);
   };
 
@@ -53,7 +55,9 @@ const ListeningMode = () => {
     speechSynthesis.speak(utterance);
   };
 
-  const handleInputChange = (value, index) => {
+  const handleInputChange = (e, index) => {
+    let value = e.target.value;
+    value = value.replace(/[^a-zA-Z]/g, "").toLowerCase();
     const updatedInputs = [...inputValues];
     updatedInputs[index] = value;
     setInputValues(updatedInputs);
@@ -87,20 +91,21 @@ const ListeningMode = () => {
       }
       setShowExplanation(true);
     } else {
-      if (mistakeCount < 2) {
+      if (mistakeCount === 0) {
         const updatedHints = [...hints];
-        updatedHints[mistakeCount] = currentWord[mistakeCount];
+        updatedHints[0] = currentWord[0];
         setHints(updatedHints);
-        setInputValues(Array(currentWord.length).fill(""));
-        setMistakeCount(mistakeCount + 1);
-        message.error("Incorrect! Here's a hint, try again.");
-        return;
+        message.error("Incorrect! Here's the first letter as a hint.");
+      } else if (mistakeCount === 1) {
+        setVietnameseHint(vocabularies[currentIndex]?.vietnameseMeaning);
+        message.error("Incorrect! Here's the meaning in Vietnamese.");
       } else {
         setHints(currentWord.split(""));
         setShowExplanation(true);
         message.info(`Incorrect! The correct word is "${currentWord}".`);
         status = "incorrect";
       }
+      setMistakeCount(mistakeCount + 1);
     }
 
     setHistory([...history, { word: currentWord, status }]);
@@ -120,25 +125,19 @@ const ListeningMode = () => {
       <div className="w-full max-w-xl bg-white rounded-lg shadow-lg p-6">
         <h1 className="text-2xl font-bold text-center mb-4">Listening Mode</h1>
         <button onClick={playAudio} className="text-blue-500 text-3xl mb-4">🔊 Play Audio</button>
-        <div className="flex justify-center gap-1 mb-6 flex-wrap">
+        <div className="flex justify-center gap-2 mb-6 flex-wrap">
           {hints.map((char, index) => (
-            <input key={index} type="text" maxLength={1} value={char !== "_" ? char : inputValues[index]} onChange={(e) => handleInputChange(e.target.value, index)} onKeyDown={(e) => handleKeyDown(e, index)} ref={(el) => (inputRefs.current[index] = el)} className="w-10 h-10 text-center text-xl font-bold border-b-2 border-blue-500 focus:outline-none" />
+            <input key={index} type="text" maxLength={1} value={char !== "_" ? char : inputValues[index]} onChange={(e) => handleInputChange(e, index)} onKeyDown={(e) => handleKeyDown(e, index)} ref={(el) => (inputRefs.current[index] = el)} className="w-10 h-10 text-center text-xl font-bold border-b-2 border-blue-500 focus:outline-none" />
           ))}
         </div>
-        <button onClick={handleSubmit} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Submit</button>
-        {showExplanation && <button onClick={handleNext} className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Next</button>}
-        <div className="mt-6">
-          <h2 className="text-lg font-bold mb-2">History</h2>
-          <ul className="list-disc pl-5">
-            {history.map((item, index) => (
-              <li key={index} className={item.status === "correct" ? "text-green-500" : item.status === "hinted" ? "text-yellow-500" : "text-red-500"}>
-                {item.word} - {item.status === "correct" ? "✔️ Correct" : item.status === "hinted" ? "⚠️ Used Hint" : "❌ Incorrect"}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="mt-4 text-center">
-          <p className="text-lg">Score: {score}</p>
+        {vietnameseHint && (
+          <p className="text-center text-lg font-semibold text-yellow-600 mb-4">
+            Hint: {vietnameseHint}
+          </p>
+        )}
+        <div className="flex justify-center gap-4 mb-6">
+          <button onClick={handleSubmit} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Submit</button>
+          {showExplanation && <button onClick={handleNext} className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Next</button>}
         </div>
       </div>
     </div>
