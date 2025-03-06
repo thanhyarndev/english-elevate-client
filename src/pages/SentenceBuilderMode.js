@@ -10,6 +10,7 @@ const SentenceBuilder = () => {
   const [selectedWords, setSelectedWords] = useState([]);
   const [score, setScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [history, setHistory] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,10 +24,9 @@ const SentenceBuilder = () => {
         { count: 20 }
       );
       const vocabData = response.data.data || [];
-      const sentenceData = vocabData.map((item) => item.exampleSentence.english);
-      setSentences(sentenceData);
-      if (sentenceData.length) {
-        setupSentence(sentenceData[0]);
+      setSentences(vocabData);
+      if (vocabData.length) {
+        setupSentence(vocabData[0]);
       }
       setIsLoading(false);
     } catch (error) {
@@ -36,9 +36,10 @@ const SentenceBuilder = () => {
     }
   };
 
-  const setupSentence = (sentence) => {
+  const setupSentence = (sentenceObj) => {
+    const sentence = sentenceObj.exampleSentence.english;
     const words = sentence.split(" ");
-    setCurrentSentence(sentence);
+    setCurrentSentence(sentenceObj);
     setShuffledWords([...words].sort(() => Math.random() - 0.5));
     setSelectedWords([]);
   };
@@ -50,12 +51,22 @@ const SentenceBuilder = () => {
 
   const handleSubmit = () => {
     const userSentence = selectedWords.join(" ");
-    if (userSentence === currentSentence) {
+    const correctSentence = currentSentence.exampleSentence.english;
+    const isCorrect = userSentence === correctSentence;
+    
+    if (isCorrect) {
       setScore(score + 1);
       message.success("Correct!");
     } else {
       message.error("Incorrect! Try again.");
     }
+    
+    setHistory([...history, {
+      sentence: correctSentence,
+      translation: currentSentence.exampleSentence.vietnamese,
+      userAttempt: userSentence,
+      isCorrect,
+    }]);
     handleNext();
   };
 
@@ -108,6 +119,20 @@ const SentenceBuilder = () => {
             </div>
             <div className="mt-4 text-center">
               <p className="text-lg">Score: {score}</p>
+            </div>
+            <div className="mt-6 w-full">
+              <h2 className="text-lg font-bold mb-2">History</h2>
+              <ul className="list-disc pl-5">
+                {history.map((item, index) => (
+                  <li key={index} className={item.isCorrect ? "text-green-500" : "text-red-500"}>
+                    <p><strong>Correct Sentence:</strong> {item.sentence}</p>
+                    <p><strong>Translation:</strong> {item.translation}</p>
+                    {!item.isCorrect && (
+                      <p className="text-red-500"><strong>Your Attempt:</strong> {item.userAttempt}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
           </>
         )}
