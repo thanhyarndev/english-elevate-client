@@ -3,7 +3,7 @@ import axios from "axios";
 import { message } from "antd";
 import { useNavigate } from "react-router-dom";
 import { DndContext, closestCenter, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { SortableContext, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -12,9 +12,21 @@ const SortableItem = ({ word, index }) => {
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isDragging ? "transform 0.1s ease" : "transform 0.3s ease-in-out",
+    opacity: isDragging ? 0.8 : 1,
     cursor: "grab",
+    zIndex: isDragging ? 1000 : "auto",
+    boxShadow: isDragging ? "0px 10px 20px rgba(0,0,0,0.3)" : "none",
+    position: "relative",
+    backgroundColor: isDragging ? "#fbbf24" : "#3b82f6", // Highlight dragging word
+    color: "white",
+    padding: "10px",
+    borderRadius: "8px",
+    fontWeight: "bold",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "60px",
   };
 
   return (
@@ -23,7 +35,7 @@ const SortableItem = ({ word, index }) => {
       {...attributes}
       {...listeners}
       style={style}
-      className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer active:scale-105"
+      className="cursor-pointer select-none"
     >
       {word}
     </span>
@@ -71,11 +83,6 @@ const SentenceBuilder = () => {
     setSelectedWords([]);
   };
 
-  const handleWordClick = (word) => {
-    setSelectedWords([...selectedWords, word]);
-    setShuffledWords(shuffledWords.filter((w) => w !== word));
-  };
-
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
@@ -88,7 +95,7 @@ const SentenceBuilder = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 1,
       },
     })
   );
@@ -139,7 +146,7 @@ const SentenceBuilder = () => {
         ) : (
           <>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={selectedWords} strategy={verticalListSortingStrategy}>
+              <SortableContext items={selectedWords} strategy={horizontalListSortingStrategy}>
                 <div className="flex flex-wrap justify-center gap-2 mb-6 bg-gray-200 p-3 rounded-lg">
                   {selectedWords.map((word, index) => (
                     <SortableItem key={word + index} word={word} index={index} />
@@ -151,7 +158,7 @@ const SentenceBuilder = () => {
               {shuffledWords.map((word, index) => (
                 <button
                   key={index}
-                  onClick={() => handleWordClick(word)}
+                  onClick={() => setSelectedWords([...selectedWords, word])}
                   className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
                 >
                   {word}
