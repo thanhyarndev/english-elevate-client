@@ -2,6 +2,33 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { message } from "antd";
 import { useNavigate } from "react-router-dom";
+import { DndContext, closestCenter, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+const SortableItem = ({ word, index }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: word + index });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: "grab",
+  };
+
+  return (
+    <span
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={style}
+      className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer active:scale-105"
+    >
+      {word}
+    </span>
+  );
+};
 
 const SentenceBuilder = () => {
   const [sentences, setSentences] = useState([]);
@@ -21,7 +48,7 @@ const SentenceBuilder = () => {
     try {
       const response = await axios.post(
         "https://english-elevate-server.vercel.app/api/vocabulary/get-random",
-        { count: 20 }
+        { count: 10 }
       );
       const vocabData = response.data.data || [];
       setSentences(vocabData);
@@ -49,6 +76,23 @@ const SentenceBuilder = () => {
     setShuffledWords(shuffledWords.filter((w) => w !== word));
   };
 
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const oldIndex = selectedWords.findIndex((word) => word + selectedWords.indexOf(word) === active.id);
+    const newIndex = selectedWords.findIndex((word) => word + selectedWords.indexOf(word) === over.id);
+    setSelectedWords(arrayMove(selectedWords, oldIndex, newIndex));
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
   const handleSubmit = () => {
     const userSentence = selectedWords.join(" ");
     const correctSentence = currentSentence.exampleSentence.english;
@@ -62,6 +106,7 @@ const SentenceBuilder = () => {
     }
     
     setHistory([...history, {
+      index: history.length + 1,
       sentence: correctSentence,
       translation: currentSentence.exampleSentence.vietnamese,
       userAttempt: userSentence,
@@ -93,11 +138,15 @@ const SentenceBuilder = () => {
           <p className="text-center text-lg">Loading sentences...</p>
         ) : (
           <>
-            <div className="flex flex-wrap justify-center gap-2 mb-6">
-              {selectedWords.map((word, index) => (
-                <span key={index} className="px-4 py-2 bg-blue-500 text-white rounded-lg">{word}</span>
-              ))}
-            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={selectedWords} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-wrap justify-center gap-2 mb-6 bg-gray-200 p-3 rounded-lg">
+                  {selectedWords.map((word, index) => (
+                    <SortableItem key={word + index} word={word} index={index} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
             <div className="flex flex-wrap justify-center gap-2 mb-6">
               {shuffledWords.map((word, index) => (
                 <button
@@ -119,20 +168,6 @@ const SentenceBuilder = () => {
             </div>
             <div className="mt-4 text-center">
               <p className="text-lg">Score: {score}</p>
-            </div>
-            <div className="mt-6 w-full">
-              <h2 className="text-lg font-bold mb-2">History</h2>
-              <ul className="list-disc pl-5">
-                {history.map((item, index) => (
-                  <li key={index} className={item.isCorrect ? "text-green-500" : "text-red-500"}>
-                    <p><strong>Correct Sentence:</strong> {item.sentence}</p>
-                    <p><strong>Translation:</strong> {item.translation}</p>
-                    {!item.isCorrect && (
-                      <p className="text-red-500"><strong>Your Attempt:</strong> {item.userAttempt}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
             </div>
           </>
         )}
